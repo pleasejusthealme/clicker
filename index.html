@@ -170,6 +170,65 @@
 
         @keyframes pulse { 0%,100% { opacity: 0.25; } 50% { opacity: 0.5; } }
 
+        /* ─── Ачивки UI ─── */
+        .achBtn {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: white; font-family: 'Outfit', sans-serif; font-weight: 600;
+            padding: 10px 20px; border-radius: 12px; cursor: pointer;
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            transition: all 0.2s; z-index: 10;
+        }
+        .achBtn:hover { background: rgba(255,255,255,0.2); transform: scale(1.05); }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+        .modal-content {
+            background: rgba(30, 27, 75, 0.7); border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 24px; padding: 30px; width: 90%; max-width: 600px;
+            max-height: 80vh; display: flex; flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5); transform: translateY(20px); transition: transform 0.3s;
+        }
+        .modal-overlay.open .modal-content { transform: translateY(0); }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h2 { color: white; font-size: 28px; margin: 0; }
+        .close-btn { background: none; border: none; color: rgba(255,255,255,0.5); font-size: 24px; cursor: pointer; transition: color 0.2s; }
+        .close-btn:hover { color: white; }
+
+        .ach-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px; overflow-y: auto; padding-right: 10px;
+        }
+        .ach-grid::-webkit-scrollbar { width: 6px; }
+        .ach-grid::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+        .ach-item {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 16px; padding: 15px; display: flex; align-items: center; gap: 15px;
+            transition: all 0.3s;
+        }
+        .ach-item.unlocked {
+            background: rgba(255,255,255,0.1); border-color: rgba(255, 105, 180, 0.4);
+            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.1);
+        }
+        .ach-icon {
+            width: 48px; height: 48px; border-radius: 12px; background: rgba(0,0,0,0.3);
+            display: flex; align-items: center; justify-content: center; font-size: 24px;
+            filter: grayscale(100%) opacity(0.5); transition: all 0.3s;
+        }
+        .ach-item.unlocked .ach-icon { filter: grayscale(0%) opacity(1); background: rgba(255, 105, 180, 0.2); }
+        .ach-info { flex: 1; }
+        .ach-title { color: white; font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+        .ach-desc { color: rgba(255,255,255,0.5); font-size: 12px; line-height: 1.3; }
+        .ach-item:not(.unlocked) .ach-title { color: rgba(255,255,255,0.5); }
+
         @media (max-width: 480px) {
             .score-value { font-size: 48px; }
             .score-panel { padding: 16px 36px; }
@@ -179,6 +238,8 @@
 <body>
     <div class="bg-particles" id="bgParticles"></div>
     <div class="container">
+        <button class="achBtn" id="achBtn">🏆 Ачивки</button>
+
         <div class="score-panel">
             <div class="score-label">Счёт</div>
             <div class="score-value" id="score">0</div>
@@ -200,6 +261,19 @@
         </div>
 
         <div class="hint">нажми на неё 👆</div>
+    </div>
+
+    <!-- Модальное окно ачивок -->
+    <div class="modal-overlay" id="achModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🏆 Достижения</h2>
+                <button class="close-btn" id="closeModal">✖</button>
+            </div>
+            <div class="ach-grid" id="achGrid">
+                <!-- Заполняется через JS -->
+            </div>
+        </div>
     </div>
 
 <script>
@@ -578,18 +652,35 @@
     let comboTimer = null;
     const emojis = ['💖','💗','💕','💞','✨','🌸','💜','🩷','❤️‍🔥','😍','🔥','💋'];
 
-    const achievements = [
-        { at: 10, text: '🎉 Первые 10!' },
-        { at: 50, text: '🔥 Разогрев! 50' },
-        { at: 100, text: '💯 Сотка!' },
-        { at: 250, text: '⚡ Скорострел! 250' },
-        { at: 500, text: '🏆 Полтысячи!' },
-        { at: 1000, text: '👑 Тысячник!' },
-        { at: 2500, text: '🌟 Легенда! 2500' },
-        { at: 5000, text: '💎 Бриллиант! 5000' },
-        { at: 10000, text: '🚀 Космос! 10000' },
+    const ALL_ACHIEVEMENTS = [
+        { id: 'clicks_10', title: 'Первые шаги', desc: 'Набери 10 очков', icon: '🎉', check: s => s.score >= 10 },
+        { id: 'clicks_100', title: 'Сотка!', desc: 'Набери 100 очков', icon: '💯', check: s => s.score >= 100 },
+        { id: 'clicks_1000', title: 'Тысячник', desc: 'Набери 1000 очков', icon: '👑', check: s => s.score >= 1000 },
+        { id: 'clicks_5000', title: 'Бриллиант', desc: 'Набери 5000 очков', icon: '💎', check: s => s.score >= 5000 },
+        { id: 'combo_15', title: 'Ловкие пальцы', desc: 'Достигни комбо x15', icon: '⚡', check: s => s.bestCombo >= 15 },
+        { id: 'combo_30', title: 'Режим Бога', desc: 'Достигни комбо x30', icon: '🔥', check: s => s.bestCombo >= 30 },
+        { id: 'cps_10', title: 'Пулемёт', desc: 'Достигни скорости 10 клик/сек', icon: '🚀', check: s => s.cps >= 10 },
+        { id: 'secret_1', title: 'Маньяк', desc: 'Достигни скорости 15 клик/сек', icon: '😈', check: s => s.cps >= 15 }
     ];
-    let nextAch = 0;
+    let unlockedAchievements = [];
+
+    // Load progress
+    try {
+        const saved = JSON.parse(localStorage.getItem('boobClickerProgress'));
+        if (saved) {
+            score = saved.score || 0;
+            bestCombo = saved.bestCombo || 0;
+            unlockedAchievements = saved.unlockedAchievements || [];
+        }
+    } catch(e) {}
+    scoreEl.textContent = score.toLocaleString();
+    bestComboEl.textContent = bestCombo;
+
+    function saveProgress() {
+        localStorage.setItem('boobClickerProgress', JSON.stringify({
+            score, bestCombo, unlockedAchievements
+        }));
+    }
 
     // ── Determine which breast was clicked ──
     function getClickedBreast(e) {
@@ -662,11 +753,57 @@
 
         clickTimestamps.push(now);
         clickTimestamps = clickTimestamps.filter(t => now - t < 3000);
-        cpsEl.textContent = (clickTimestamps.length / 3).toFixed(1);
+        const currentCps = clickTimestamps.length / 3;
+        cpsEl.textContent = currentCps.toFixed(1);
 
-        if (nextAch < achievements.length && score >= achievements[nextAch].at) {
-            showAchievement(achievements[nextAch].text); nextAch++;
+        // Check achievements
+        const state = { score, bestCombo, cps: currentCps };
+        let newlyUnlocked = false;
+        ALL_ACHIEVEMENTS.forEach(ach => {
+            if (!unlockedAchievements.includes(ach.id) && ach.check(state)) {
+                unlockedAchievements.push(ach.id);
+                showAchievement(ach.icon + ' ' + ach.title);
+                newlyUnlocked = true;
+            }
+        });
+        
+        saveProgress();
+        if (newlyUnlocked && achModal.classList.contains('open')) {
+            renderAchievements();
         }
+    });
+
+    // ─── Modal Logic ───
+    const achBtn = document.getElementById('achBtn');
+    const achModal = document.getElementById('achModal');
+    const closeModal = document.getElementById('closeModal');
+    const achGrid = document.getElementById('achGrid');
+
+    function renderAchievements() {
+        achGrid.innerHTML = '';
+        ALL_ACHIEVEMENTS.forEach(ach => {
+            const isUnlocked = unlockedAchievements.includes(ach.id);
+            const el = document.createElement('div');
+            el.className = 'ach-item' + (isUnlocked ? ' unlocked' : '');
+            
+            el.innerHTML = `
+                <div class="ach-icon">${isUnlocked ? ach.icon : '🔒'}</div>
+                <div class="ach-info">
+                    <div class="ach-title">${isUnlocked ? ach.title : '???'}</div>
+                    <div class="ach-desc">${ach.desc}</div>
+                </div>
+            `;
+            achGrid.appendChild(el);
+        });
+    }
+
+    achBtn.addEventListener('click', () => {
+        renderAchievements();
+        achModal.classList.add('open');
+    });
+    closeModal.addEventListener('click', () => achModal.classList.remove('open'));
+    achModal.addEventListener('click', (e) => {
+        if (e.target === achModal) achModal.classList.remove('open');
     });
 
     boobArea.addEventListener('mousemove', (e) => {
